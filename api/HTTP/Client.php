@@ -3,18 +3,6 @@
 namespace HTTP;
 
 /**
- * Добавить в гитхаб
- * 
- * Переписать добавление заголовков, нужен массив для заголовков на текущий запрос
- * в методе call и download есть добавление заголовков не в тот массив
- * 
- * Написать обёртку для таймлайн добавления
- * 
- * Написать структуру для быстрого старта написания скриптов с апи
- * 
- */
-
-/**
  * Класс для запросов по http протоколу. Написанный специально для организации подключения к API
  */
 class Client
@@ -25,10 +13,11 @@ class Client
     const PATCH     =   'PATCH';
     const DELETE    =   'DELETE';
 
-    public $curl;           // дескриптор курл процесса
-    protected $userPwd;     // авторизационные данные для http протокола
-    protected $url;         // адрес запроса
-    protected $headers =    // заголовки запроса
+    public $curl;                       // дескриптор курл процесса
+    protected $userPwd;                 // авторизационные данные для http протокола
+    protected $url;                     // адрес запроса
+    protected $headersRequest = [];     // заголовки текущего запроса (действуют только для одного запроса)
+    protected $headers =                // заголовки запроса
     [
         'Accept' => 'application/json',
         'Content-Type' => 'application/json'
@@ -43,7 +32,7 @@ class Client
      *      'userPwd' => 'username:password'                                авторизационные данные для http протокола
      *  ]
      */
-    public function __construct(array $parameters = [])//$apiKey, array $headers = [], $userPwd = null
+    public function __construct(array $parameters = [])
     {
         // считываем переданные параметры
         $headers = $parameters['headers'];
@@ -92,7 +81,7 @@ class Client
      */
     public function getHeadersForRequest()
     {
-        return self::headersJoin($this->headers);
+        return self::headersJoin(array_merge($this->headers, $this->headersRequest));
     }
 
     /**
@@ -114,6 +103,19 @@ class Client
 
         self::headersKeyToLow($headers);
         $this->headers = array_merge($this->headers, $headers);
+    }
+
+    /**
+     * Добавляем заголовки для текущего запроса.
+     * 
+     * @param array $headers    Добавляем заголовки к массиву текущих заголовков запроса.
+     */
+    public function headersRequestAdd(array $headers)
+    {
+        if (empty($headers)) return;
+
+        self::headersKeyToLow($headers);
+        $this->headersRequest = array_merge($this->headersRequest, $headers);
     }
 
     /**
@@ -166,6 +168,8 @@ class Client
      */
     protected function curlReset()
     {
+        $this->headersRequest = [];
+
         curl_reset($this->curl);
 
         curl_setopt_array($this->curl,
@@ -220,7 +224,7 @@ class Client
         if (!is_array($headers)) $headers = [];
 
 
-        $this->headersAdd($headers);
+        $this->headersRequestAdd($headers);
 
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, $httpMethod);
 
@@ -243,7 +247,7 @@ class Client
                 curl_setopt($this->curl, CURLOPT_POSTFIELDS, '');
                 curl_setopt($this->curl, CURLOPT_HTTPHEADER, $this->getHeadersForRequest());
             }
-            else if (self::isUploadFile($this->headers)) // отправляем файл
+            else if (self::isUploadFile($this->headers) || self::isUploadFile($this->headersRequest)) // отправляем файл
             {
                 curl_setopt($this->curl, CURLOPT_POSTFIELDS, $httpParameters);
                 curl_setopt($this->curl, CURLOPT_HTTPHEADER, $this->getHeadersForRequest());
@@ -252,7 +256,7 @@ class Client
             {
                 $parameters0 = json_encode($httpParameters);
 
-                $this->headersAdd(['Content-Length: '. strlen($parameters0)]);
+                $this->headersRequestAdd(['Content-Length: '. strlen($parameters0)]);
 
                 curl_setopt($this->curl, CURLOPT_POSTFIELDS, $parameters0);
                 curl_setopt($this->curl, CURLOPT_HTTPHEADER, $this->getHeadersForRequest());
@@ -305,7 +309,7 @@ class Client
         $headers = $parameters['headers'];
         if (is_array($headers)) $headers = [];
 
-        $this->headersAdd($headers);
+        $this->headersRequestAdd($headers);
         
         // создаём файл
         $fp = fopen($filepath, 'w');
