@@ -307,7 +307,7 @@ class Client
         if (is_null($url)) $url = '';
 
         $headers = $parameters['headers'];
-        if (is_array($headers)) $headers = [];
+        if (!is_array($headers)) $headers = [];
 
         $this->headersRequestAdd($headers);
         
