@@ -25,18 +25,20 @@ require_once 'autoload.php';
 $leadId = intval($leadId);
 
 
+// проверка входных данных
+if ($leadOrDeal != 'lead' && $leadOrDeal != 'deal') exit;
+
+
 /**
  * подключения API
  */
 
 // Bitrix24 Rest Api
-$clientBitrixParameters =
+$clientBitrix = new \HTTP\Client(
 [
     'apiUrl' => 'https://'. WEBHOOK_DOMAIN .'.bitrix24.ru/rest/'. WEBHOOK_USER .'/'. WEBHOOK_KEY .'/',
     'headers' => ['Cache-Control' => 'no-cache']
-];
-
-$clientBitrix = new \HTTP\Client($clientBitrixParameters);
+]);
 
 
 $Timeline = new \Bitrix24\CRM\Timeline($clientBitrix);
